@@ -30,6 +30,9 @@ namespace dusk {
         void ShowInputViewer();
         void ShowActorSpawner();
 
+        void QuickSave();
+        void QuickLoad();
+
     private:
 		bool m_showDebugOverlay = false;
 		int m_debugOverlayCorner = 2; // bottom-left

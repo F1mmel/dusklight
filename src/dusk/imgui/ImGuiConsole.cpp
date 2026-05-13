@@ -266,6 +266,16 @@ namespace dusk {
                 m_isHidden = true;
             }
         }
+
+        if (dusk::IsGameLaunched) {
+            if (ImGui::IsKeyPressed(ImGuiKey_F5)) {
+                if (ImGui::GetIO().KeyShift) {
+                    m_menuTools.QuickSave();
+                } else if (!ImGui::GetIO().KeyCtrl) {
+                    m_menuTools.QuickLoad();
+                }
+            }
+        }
         
         bool showMenu = !m_isHidden;
 
@@ -455,9 +465,22 @@ namespace dusk {
         }
     }
 
-    bool ImGuiConsole::CheckMenuViewToggle(ImGuiKey key, bool& active) {
+    bool ImGuiConsole::CheckMenuViewToggle(ImGuiKey key, bool& active, ImGuiKeyChord modifier) {
         if (ImGui::IsKeyPressed(key)) {
-            active = !active;
+            bool modsMatch = true;
+            if (modifier & ImGuiMod_Ctrl) modsMatch &= ImGui::GetIO().KeyCtrl;
+            if (modifier & ImGuiMod_Shift) modsMatch &= ImGui::GetIO().KeyShift;
+            if (modifier & ImGuiMod_Alt) modsMatch &= ImGui::GetIO().KeyAlt;
+            if (modifier & ImGuiMod_Super) modsMatch &= ImGui::GetIO().KeySuper;
+
+            // If no modifiers in argument, ensure no modifiers are pressed
+            if (modifier == ImGuiMod_None) {
+                modsMatch = !ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyShift && !ImGui::GetIO().KeyAlt && !ImGui::GetIO().KeySuper;
+            }
+
+            if (modsMatch) {
+                active = !active;
+            }
         }
 
         return active;

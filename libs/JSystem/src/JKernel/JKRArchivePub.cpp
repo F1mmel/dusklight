@@ -143,7 +143,7 @@ void* JKRArchive::getResource(const char* path) {
     
     std::string fullPath = std::string(mVolumeName) + "/" + path;
     auto modPath = dusk::GetModFilePath(fullPath.c_str());
-    dusk::AddModLog(fmt::format(fmt::runtime("[JKRArchive::getResource(const char* path)] Checking: {}"), fullPath));
+    //dusk::AddModLog(fmt::format(fmt::runtime("[JKRArchive::getResource(const char* path)] Checking: {}"), fullPath));
     if (modPath) {
         std::ifstream file(*modPath, std::ios::binary | std::ios::ate);
         if (file) {
@@ -175,7 +175,7 @@ void* JKRArchive::getResource(const char* path) {
 void* JKRArchive::getResource(u32 type, const char* path) {
     JUT_ASSERT(347, isMounted());
     
-    dusk::AddModLog(fmt::format(fmt::runtime("[JKRArchive::getResource(u32 type, const char* path)] Checking: {}"), path));
+    //dusk::AddModLog(fmt::format(fmt::runtime("[JKRArchive::getResource(u32 type, const char* path)] Checking: {}"), path));
     dusk::LogFileLoad(mVolumeName, path);
     SDIFileEntry* fileEntry;
     if (type == 0 || type == '????') {

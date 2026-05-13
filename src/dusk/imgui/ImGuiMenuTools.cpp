@@ -189,7 +189,7 @@ namespace dusk {
 
     void ImGuiMenuTools::ShowPlayerInfo() {
         if (!getSettings().backend.enableAdvancedSettings ||
-            !ImGuiConsole::CheckMenuViewToggle(ImGuiKey_F5, m_showPlayerInfo))
+            !ImGuiConsole::CheckMenuViewToggle(ImGuiKey_F5, m_showPlayerInfo, ImGuiMod_Ctrl))
         {
             return;
         }
@@ -255,5 +255,13 @@ namespace dusk {
 
         ImGui::End();
         ImGui::PopFont();
+    }
+
+    void ImGuiMenuTools::QuickSave() {
+        m_stateShare.quickSave();
+    }
+
+    void ImGuiMenuTools::QuickLoad() {
+        m_stateShare.quickLoad();
     }
 }

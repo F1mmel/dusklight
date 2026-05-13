@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
 
 env:
-  DUSK_VERSION: ${{ github.ref_name }}
+  DUSK_VERSION: "1.01"
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
 

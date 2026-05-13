@@ -25,7 +25,7 @@ public:
     void PreDraw();
     void PostDraw();
 
-    static bool CheckMenuViewToggle(ImGuiKey key, bool& active);
+    static bool CheckMenuViewToggle(ImGuiKey key, bool& active, ImGuiKeyChord modifier = ImGuiMod_None);
     void AddToast(std::string_view message, float duration = 3.f);
 
 private:

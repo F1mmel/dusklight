@@ -15,6 +15,7 @@
 #include "f_op/f_op_overlap_mng.h"
 #include "../file_select.hpp"
 #include "aurora/lib/window.hpp"
+#include "dusk/mod_loader.hpp"
 
 #include <unordered_set>
 #include <zstd.h>
@@ -29,12 +30,16 @@ struct StateSharePacket {
     int8_t  roomNo;
     int8_t  layer;
     int16_t startPoint;
+    cXyz    pos;
+    s16     angleY;
     // followed by raw dSv_info_c bytes
 };
 #pragma pack(pop)
 
 static constexpr size_t PACKET_TOTAL     = sizeof(StateSharePacket) + sizeof(dSv_info_c);
 static constexpr size_t PACKET_SAVE_ONLY = sizeof(StateSharePacket) + sizeof(dSv_save_c);
+static constexpr size_t PACKET_TOTAL_V1     = 12 + sizeof(dSv_info_c);
+static constexpr size_t PACKET_SAVE_ONLY_V1 = 12 + sizeof(dSv_save_c);
 static constexpr auto STATES_FILENAME = "states.json";
 
 static bool ValidateEncodedState(const std::string&);
@@ -45,8 +50,6 @@ void ImGuiStateShare::onMergeFileSelected(void* userdata, const char* path, cons
         self->m_pendingMergePath = path;
     }
 }
-
-
 
 static std::filesystem::path GetStatesFilePath() {
     return ConfigPath / STATES_FILENAME;
@@ -97,6 +100,12 @@ std::string ImGuiStateShare::encodeCurrentState() {
     pkt.layer      = dComIfGp_getStartStageLayer();
     pkt.startPoint = dComIfGp_getStartStagePoint();
 
+    fopAc_ac_c* player = dComIfGp_getPlayer(0);
+    if (player != nullptr) {
+        pkt.pos = player->current.pos;
+        pkt.angleY = player->shape_angle.y;
+    }
+
     std::string raw(PACKET_TOTAL, '\0');
     memcpy(raw.data(), &pkt, sizeof(pkt));
     memcpy(raw.data() + sizeof(pkt), &g_dComIfG_gameInfo.info, sizeof(dSv_info_c));
@@ -121,9 +130,12 @@ bool ImGuiStateShare::applyEncodedState(const std::string& encoded, const std::s
         return false;
     }
 
-    const bool isFull    = (dSize == PACKET_TOTAL);
-    const bool isPartial = (dSize == PACKET_SAVE_ONLY);
-    if (!isFull && !isPartial) {
+    const bool isV2      = (dSize == PACKET_TOTAL);
+    const bool isPartialV2 = (dSize == PACKET_SAVE_ONLY);
+    const bool isV1      = (dSize == PACKET_TOTAL_V1);
+    const bool isPartialV1 = (dSize == PACKET_SAVE_ONLY_V1);
+    
+    if (!isV2 && !isPartialV2 && !isV1 && !isPartialV1) {
         m_statusMsg = "Not a valid state string.";
         return false;
     }
@@ -135,16 +147,25 @@ bool ImGuiStateShare::applyEncodedState(const std::string& encoded, const std::s
         return false;
     }
 
-    StateSharePacket pkt;
-    memcpy(&pkt, raw.data(), sizeof(pkt));
+    StateSharePacket pkt = {};
+    size_t pktSize = (isV1 || isPartialV1) ? 12 : sizeof(StateSharePacket);
+    memcpy(&pkt, raw.data(), pktSize);
     pkt.stageName[7] = '\0';
 
-    if (isFull) {
-        memcpy(&g_dComIfG_gameInfo.info, raw.data() + sizeof(pkt), sizeof(dSv_info_c));
+    if (isV1 || isPartialV1) {
+        m_pendingPos.reset();
+        m_pendingAngleY.reset();
+    } else {
+        m_pendingPos = pkt.pos;
+        m_pendingAngleY = pkt.angleY;
+    }
+
+    if (isV2 || isV1) {
+        memcpy(&g_dComIfG_gameInfo.info, raw.data() + pktSize, sizeof(dSv_info_c));
         m_pendingInfo = g_dComIfG_gameInfo.info;
         m_pendingSavedata.reset();
     } else {
-        memcpy(&g_dComIfG_gameInfo.info.mSavedata, raw.data() + sizeof(pkt), sizeof(dSv_save_c));
+        memcpy(&g_dComIfG_gameInfo.info.mSavedata, raw.data() + pktSize, sizeof(dSv_save_c));
         m_pendingSavedata = g_dComIfG_gameInfo.info.mSavedata;
         m_pendingInfo.reset();
     }
@@ -167,22 +188,51 @@ bool ImGuiStateShare::applyEncodedState(const std::string& encoded, const std::s
 }
 
 void ImGuiStateShare::tickPendingApply() {
-    if (!m_pendingInfo.has_value() && !m_pendingSavedata.has_value()) {
+    if (!m_pendingInfo.has_value() && !m_pendingSavedata.has_value() && !m_pendingPos.has_value()) {
         return;
     }
+
     if (dComIfGp_isEnableNextStage()) {
         return;
     }
+
     if (m_pendingInfo.has_value()) {
         g_dComIfG_gameInfo.info = *m_pendingInfo;
         m_pendingInfo.reset();
-    } else {
+    } else if (m_pendingSavedata.has_value()) {
         g_dComIfG_gameInfo.info.mSavedata = *m_pendingSavedata;
         m_pendingSavedata.reset();
     }
-    dComIfGp_offOxygenShowFlag();
-    dComIfGp_setMaxOxygen(600);
-    dComIfGp_setOxygen(600);
+
+    fopAc_ac_c* player = dComIfGp_getPlayer(0);
+    if (player != nullptr) {
+        if (m_pendingPos.has_value()) {
+            static int retryCount = 0;
+
+            dusk::AddModLog(fmt::format("Teleport attempt {} to: {}, {}, {}", retryCount + 1, m_pendingPos->x, m_pendingPos->y, m_pendingPos->z));
+
+            // Set position and clear collision-related flags if possible, or use move function
+            fopAcM_posMoveF(player, &(*m_pendingPos));
+
+            // Explicitly force the position as a fallback
+            fopAcM_SetPosition(player, m_pendingPos->x, m_pendingPos->y, m_pendingPos->z);
+            player->shape_angle.y = m_pendingAngleY.value_or(0);
+            player->current.angle.y = player->shape_angle.y;
+
+            if (++retryCount >= 60) {
+                cXyz actualPos = player->current.pos;
+                dusk::AddModLog(fmt::format("Teleport finished at: {}, {}, {}", actualPos.x, actualPos.y, actualPos.z));
+                m_pendingPos.reset();
+                m_pendingAngleY.reset();
+                retryCount = 0;
+            }
+        }
+        dComIfGp_offOxygenShowFlag();
+        dComIfGp_setMaxOxygen(600);
+        dComIfGp_setOxygen(600);
+    } else if (m_pendingPos.has_value()) {
+        dusk::AddModLog(fmt::format("Waiting for player actor to initialize..."));
+    }
 }
 
 static bool ValidateEncodedState(const std::string& encoded) {
@@ -242,7 +292,37 @@ void ImGuiStateShare::mergeFromFile(const std::string& path) {
     }
 }
 
-void ImGuiStateShare::draw(bool& open) {
+void ImGuiStateShare::quickSave() {
+    if (!dusk::IsGameLaunched) return;
+    try {
+        io::FileStream::WriteAllText(ConfigPath / "quicksave.bin", encodeCurrentState());
+        m_statusMsg = "Quick state saved.";
+        DuskToast(m_statusMsg);
+    } catch (const std::exception& e) {
+        m_statusMsg = fmt::format("Failed to quick save: {}", e.what());
+    }
+}
+
+void ImGuiStateShare::quickLoad() {
+    if (!dusk::IsGameLaunched || dusk::getTransientSettings().stateShareLoadActive) return;
+    const std::filesystem::path path = ConfigPath / "quicksave.bin";
+    if (!std::filesystem::exists(path)) {
+        m_statusMsg = "No quick state found.";
+        return;
+    }
+    try {
+        auto data = io::FileStream::ReadAllBytes(path);
+        std::string encoded(reinterpret_cast<const char*>(data.data()), data.size());
+        if (applyEncodedState(encoded, "Quick Load")) {
+            m_statusMsg = "Quick state loaded.";
+            DuskToast(m_statusMsg);
+        }
+    } catch (const std::exception& e) {
+        m_statusMsg = fmt::format("Failed to quick load: {}", e.what());
+    }
+}
+
+void ImGuiStateShare::update() {
     if (dusk::IsGameLaunched) {
         tickPendingApply();
         if (dusk::getTransientSettings().stateShareLoadActive) {
@@ -254,7 +334,9 @@ void ImGuiStateShare::draw(bool& open) {
             }
         }
     }
+}
 
+void ImGuiStateShare::draw(bool& open) {
     if (!m_loaded) {
         loadStatesFile();
     }

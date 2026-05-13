@@ -93,5 +93,6 @@ namespace dusk {
         std::lock_guard lock(StubLogMutex);
 
         ClearPastFrame();
+        m_stateShare.update();
     }
 }
