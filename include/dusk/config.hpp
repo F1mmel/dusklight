@@ -87,6 +87,7 @@ public:
  * This must be done on startup *before* config has been loaded.
  */
 void Register(ConfigVarBase& configVar);
+void Unregister(ConfigVarBase& configVar);
 
 /**
  * \brief Indicate that all registrations have happened and everything should lock in.

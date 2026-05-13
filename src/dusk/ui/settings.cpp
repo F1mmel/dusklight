@@ -1176,6 +1176,11 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
 }
 
 void SettingsWindow::update() {
+    if (dusk::getModSettingsUpdated()) {
+        dusk::clearModSettingsUpdated();
+        refresh_active_tab();
+    }
+
     if (mPrelaunch && top_document() == this) {
         try_push_verification_modal(*this);
     }

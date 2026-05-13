@@ -8,30 +8,7 @@
 namespace dusk {
 
 static std::set<std::string> s_modConfigNames;
-
-static std::string toCamelCase(std::string_view input) {
-    std::string result;
-    bool nextUpper = false;
-    bool first = true;
-    for (char c : input) {
-        if (std::isalnum(static_cast<unsigned char>(c))) {
-            if (first) {
-                result += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                first = false;
-            } else if (nextUpper) {
-                result += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-                nextUpper = false;
-            } else {
-                result += c;
-            }
-        } else {
-            if (!first) {
-                nextUpper = true;
-            }
-        }
-    }
-    return result;
-}
+static bool s_modSettingsUpdated = false;
 
 UserSettings g_userSettings = {
     .video = {
@@ -164,6 +141,90 @@ UserSettings g_userSettings = {
 
 UserSettings& getSettings() {
     return g_userSettings;
+}
+
+static std::string toCamelCase(std::string_view input) {
+    std::string result;
+    bool nextUpper = false;
+    bool first = true;
+    for (char c : input) {
+        if (std::isalnum(static_cast<unsigned char>(c))) {
+            if (first) {
+                result += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                first = false;
+            } else if (nextUpper) {
+                result += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                nextUpper = false;
+            } else {
+                result += c;
+            }
+        } else {
+            if (!first) {
+                nextUpper = true;
+            }
+        }
+    }
+    return result;
+}
+
+void refreshModSettings() {
+    if (ConfigPath.empty()) {
+        return;
+    }
+
+    std::filesystem::path modsDir = ConfigPath / "mods";
+    std::error_code ec;
+    if (std::filesystem::exists(modsDir, ec)) {
+        bool changed = false;
+        std::set<std::string> currentMods;
+
+        for (const auto& entry : std::filesystem::directory_iterator(modsDir, ec)) {
+            if (entry.is_directory()) {
+                std::string modName = entry.path().filename().string();
+                currentMods.insert(modName);
+
+                std::string configName = "mods." + toCamelCase(modName);
+
+                auto [it, inserted] = s_modConfigNames.insert(configName);
+                if (g_userSettings.game.modConfigs.find(modName) == g_userSettings.game.modConfigs.end()) {
+                    g_userSettings.game.modConfigs.emplace(
+                        std::piecewise_construct,
+                        std::forward_as_tuple(modName),
+                        std::forward_as_tuple(it->c_str(), IsModEnabled(modName)));
+                    changed = true;
+                }
+            }
+        }
+
+        // Handle deletions
+        auto it = g_userSettings.game.modConfigs.begin();
+        while (it != g_userSettings.game.modConfigs.end()) {
+            if (!currentMods.contains(it->first)) {
+                config::Unregister(it->second);
+                it = g_userSettings.game.modConfigs.erase(it);
+                changed = true;
+            } else {
+                ++it;
+            }
+        }
+
+        if (changed) {
+            for (auto& [name, var] : g_userSettings.game.modConfigs) {
+                if (!var.isRegistered()) {
+                    Register(var);
+                }
+            }
+            s_modSettingsUpdated = true;
+        }
+    }
+}
+
+bool getModSettingsUpdated() {
+    return s_modSettingsUpdated;
+}
+
+void clearModSettingsUpdated() {
+    s_modSettingsUpdated = false;
 }
 
 void registerSettings() {
@@ -316,4 +377,3 @@ TransientSettings& getTransientSettings() {
 }
 
 }
-

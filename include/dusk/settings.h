@@ -201,6 +201,11 @@ struct UserSettings {
 UserSettings& getSettings();
 
 void registerSettings();
+void refreshModSettings();
+
+// Check if the mod list was updated (e.g. by FileWatcher)
+bool getModSettingsUpdated();
+void clearModSettingsUpdated();
 
 // Transient settings
 

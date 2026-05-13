@@ -16,6 +16,8 @@
 #include "prelaunch.hpp"
 #include "window.hpp"
 
+#include "dusk/mod_loader.hpp"
+
 namespace dusk::ui {
 namespace {
 
@@ -231,6 +233,8 @@ void update() noexcept {
     };
     update_documents(sDocumentStack);
     update_documents(sPassiveDocuments);
+
+    dusk::UpdateModWatcher();
 
     // Remove closed documents
     {

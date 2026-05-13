@@ -113,6 +113,18 @@ public:
      * This is necessary to make it legal to access.
      */
     void markRegistered();
+
+    /**
+     * Mark this CVar as no longer registered.
+     */
+    void unmarkRegistered();
+
+    /**
+     * Check if this CVar is registered.
+     */
+    [[nodiscard]] constexpr bool isRegistered() const noexcept {
+        return registered;
+    }
 };
 
 template <typename T>

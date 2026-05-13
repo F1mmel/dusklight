@@ -161,9 +161,9 @@ namespace dusk::config {
 
 void dusk::config::Register(ConfigVarBase& configVar) {
     const auto& name = configVar.getName();
-    if (RegistrationDone) {
+    /*if (RegistrationDone) {
         DuskConfigLog.fatal("Tried to register CVar {} after registrations closed!", name);
-    }
+    }*/
 
     if (RegisteredConfigVars.contains(name)) {
         DuskConfigLog.fatal("Tried to register CVar {} twice!", name);
@@ -173,11 +173,20 @@ void dusk::config::Register(ConfigVarBase& configVar) {
     configVar.markRegistered();
 }
 
+void dusk::config::Unregister(ConfigVarBase& configVar) {
+    RegisteredConfigVars.erase(configVar.getName());
+    configVar.unmarkRegistered();
+}
+
 void ConfigVarBase::markRegistered() {
     if (registered)
         abort();
 
     registered = true;
+}
+
+void ConfigVarBase::unmarkRegistered() {
+    registered = false;
 }
 
 void dusk::config::FinishRegistration() {

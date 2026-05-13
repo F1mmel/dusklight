@@ -11,7 +11,12 @@ namespace dusk {
     std::optional<std::filesystem::path> GetModFilePath(const char* dvdPath);
     void InitModLoader();
     void TriggerReload();
+    void UpdateModWatcher();
     void LoadModSettings();
+
+    bool IsModWatcherEnabled();
+    void SetModWatcherEnabled(bool enabled);
+
     size_t GetModCount();
     const std::vector<std::string>& GetModLogs();
     const std::vector<std::filesystem::path>& GetModFolders();

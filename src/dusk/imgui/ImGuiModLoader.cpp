@@ -8,8 +8,6 @@
 #include <map>
 
 namespace dusk {
-    static std::filesystem::file_time_type s_lastModsDirTime;
-    static bool s_enableFileWatcher = true;
     static bool s_showSettings = false;
     static bool s_showMods = true;
 
@@ -55,20 +53,12 @@ namespace dusk {
     }
 
     void ImGuiModLoader::drawWindows() {
-        if (s_enableFileWatcher) {
-            auto modsDir = dusk::ConfigPath / "mods";
-            if (std::filesystem::exists(modsDir)) {
-                auto currentTime = std::filesystem::last_write_time(modsDir);
-                if (currentTime != s_lastModsDirTime) {
-                    s_lastModsDirTime = currentTime;
-                    dusk::TriggerReload();
-                }
-            }
-        }
-
         if (s_showSettings) {
             if (ImGui::Begin("Settings", &s_showSettings)) {
-                ImGui::Checkbox("Enable Auto-Reload (FileWatcher)", &s_enableFileWatcher);
+                bool enabled = dusk::IsModWatcherEnabled();
+                if (ImGui::Checkbox("Enable Auto-Reload (FileWatcher)", &enabled)) {
+                    dusk::SetModWatcherEnabled(enabled);
+                }
             }
             ImGui::End();
         }

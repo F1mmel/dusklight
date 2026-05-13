@@ -18,6 +18,8 @@ static std::vector<std::string> s_modLogs;
 static std::map<std::string, bool> s_modEnabled;
 static std::map<std::string, std::map<std::string, bool>> s_modFilesEnabled;
 static std::map<std::filesystem::path, std::shared_ptr<ArcDirectory>> s_parsedArchives;
+static std::filesystem::file_time_type s_lastModsDirTime;
+static bool s_enableFileWatcher = true;
 
 void LoadModSettings() {
     s_modEnabled.clear();
@@ -52,11 +54,24 @@ void SaveModSettings() {
 }
 
 bool IsModEnabled(const std::string& modName) {
+    auto& configs = getSettings().game.modConfigs;
+    auto it = configs.find(modName);
+    if (it != configs.end()) {
+        return it->second.getValue();
+    }
+
     if (s_modEnabled.find(modName) == s_modEnabled.end()) return false;
     return s_modEnabled[modName];
 }
 
 void SetModEnabled(const std::string& modName, bool enabled) {
+    auto& configs = getSettings().game.modConfigs;
+    auto it = configs.find(modName);
+    if (it != configs.end()) {
+        it->second.setValue(enabled);
+        dusk::config::Save();
+    }
+
     s_modEnabled[modName] = enabled;
     SaveModSettings();
 }
@@ -174,4 +189,21 @@ const std::map<std::filesystem::path, std::shared_ptr<ArcDirectory>>& GetParsedA
 void AddModLog(const std::string& msg) { s_modLogs.push_back(msg); }
 void LogArchiveLoad(const char* arcName) { DuskLog.info("[JKRArchive] Loading: {}.arc", arcName); }
 void LogFileLoad(const char* arcName, const char* fileName) { DuskLog.info("[JKRFile] {}/{}", arcName, fileName); }
+
+void UpdateModWatcher() {
+    if (!s_enableFileWatcher) return;
+
+    auto modsDir = dusk::ConfigPath / "mods";
+    std::error_code ec;
+    if (std::filesystem::exists(modsDir, ec)) {
+        auto currentTime = std::filesystem::last_write_time(modsDir, ec);
+        if (!ec && currentTime != s_lastModsDirTime) {
+            s_lastModsDirTime = currentTime;
+            dusk::refreshModSettings();
+        }
+    }
+}
+
+bool IsModWatcherEnabled() { return s_enableFileWatcher; }
+void SetModWatcherEnabled(bool enabled) { s_enableFileWatcher = enabled; }
 }
