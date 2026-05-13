@@ -1,7 +1,10 @@
+#include "dusk/settings.h"
+#include "dusk/config.hpp"
 #include "dusk/mod_loader.hpp"
 #include "dusk/main.h"
 #include "dusk/logging.h"
 #include "nlohmann/json.hpp"
+#include "d/d_com_inf_game.h"
 #include <vector>
 #include <algorithm>
 #include <fstream>
@@ -16,23 +19,12 @@ static std::map<std::string, bool> s_modEnabled;
 static std::map<std::string, std::map<std::string, bool>> s_modFilesEnabled;
 static std::map<std::filesystem::path, std::shared_ptr<ArcDirectory>> s_parsedArchives;
 
-static std::filesystem::path GetAppDataPath() {
-    char* appData = getenv("APPDATA");
-    if (appData) {
-        std::filesystem::path p(appData);
-        return p / "TwilitRealm" / "Dusk";
-    }
-    return ConfigPath;
-}
-
-static const std::filesystem::path s_settingsPath = GetAppDataPath() / "mod_settings.json";
-
 void LoadModSettings() {
     s_modEnabled.clear();
     s_modFilesEnabled.clear();
-    if (std::filesystem::exists(s_settingsPath)) {
+    if (std::filesystem::exists(dusk::ConfigPath / "mod_settings.json")) {
         try {
-            std::ifstream file(s_settingsPath);
+            std::ifstream file(dusk::ConfigPath / "mod_settings.json");
             json j;
             file >> j;
             if (j.contains("mods")) {
@@ -55,7 +47,7 @@ void SaveModSettings() {
     for (const auto& [name, enabled] : s_modEnabled) {
         j["mods"][name] = {{"enabled", enabled}, {"files", s_modFilesEnabled[name]}};
     }
-    std::ofstream file(s_settingsPath);
+    std::ofstream file(dusk::ConfigPath / "mod_settings.json");
     file << j.dump(4);
 }
 
@@ -83,6 +75,11 @@ bool IsFileEnabled(const std::string& modName, const std::string& filePath) {
 void SetFileEnabled(const std::string& modName, const std::string& filePath, bool enabled) {
     s_modFilesEnabled[modName][filePath] = enabled;
     SaveModSettings();
+}
+
+void TriggerReload() {
+    dusk::InitModLoader();
+    dComIfGp_setNextStage(dComIfGp_getStartStageName(), dComIfGp_getStartStagePoint(), dComIfGp_roomControl_getStayNo(), dComIfGp_getStartStageLayer());
 }
 
 void InitModLoader() {

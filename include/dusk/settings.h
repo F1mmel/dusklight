@@ -2,6 +2,9 @@
 #define DUSK_CONFIG_H
 
 #include "dusk/config_var.hpp"
+#include <map>
+#include <string>
+#include <memory>
 
 namespace dusk {
 
@@ -177,6 +180,9 @@ struct UserSettings {
         ConfigVar<bool> speedrunMode;
         ConfigVar<bool> liveSplitEnabled;
         ConfigVar<bool> recordingMode;
+
+        // Mods
+        std::map<std::string, ConfigVar<bool>> modConfigs;
     } game;
 
     struct {

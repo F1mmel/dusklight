@@ -151,6 +151,32 @@ bool dusk::OpenDataFolder() {
 #endif
 }
 
+bool dusk::OpenModsFolder() {
+#if DUSK_CAN_OPEN_DATA_FOLDER
+    std::error_code ec;
+    std::filesystem::path path = std::filesystem::absolute(ConfigPath / "mods", ec);
+    if (ec) {
+        DuskLog.warn("Failed to resolve absolute data folder path '{}': {}",
+            io::fs_path_to_string(ConfigPath), ec.message());
+        path = ConfigPath;
+    }
+
+#if defined(_WIN32)
+    const std::string url = "file:///" + path.generic_string();
+#else
+    const std::string url = "file://" + path.generic_string();
+#endif
+    if (!SDL_OpenURL(url.c_str())) {
+        DuskLog.warn(
+            "Failed to open mods folder '{}': {}", io::fs_path_to_string(path), SDL_GetError());
+        return false;
+    }
+    return true;
+#else
+    return false;
+#endif
+}
+
 s32 LOAD_COPYDATE(void*) {
     char buffer[32];
     memset(buffer, 0, sizeof(buffer));
@@ -659,6 +685,8 @@ int game_main(int argc, char* argv[]) {
     }
     mainCalled = true;
 
+    dusk::ConfigPath = calculate_config_path();
+
     dusk::registerSettings();
     dusk::config::FinishRegistration();
 
@@ -692,7 +720,6 @@ int game_main(int argc, char* argv[]) {
         exit(1);
     }
 
-    dusk::ConfigPath = calculate_config_path();
     const auto startupLogLevel = static_cast<AuroraLogLevel>(parsed_arg_options["log-level"].as<uint8_t>());
     dusk::InitializeFileLogging(dusk::ConfigPath, startupLogLevel);
     dusk::InitModLoader();

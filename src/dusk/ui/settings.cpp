@@ -18,6 +18,9 @@
 #include "pane.hpp"
 #include "prelaunch.hpp"
 #include "ui.hpp"
+#include "dusk/mod_loader.hpp"
+#include "nlohmann/json.hpp"
+#include <fstream>
 
 #if DUSK_ENABLE_SENTRY_NATIVE
 #include "dusk/crash_reporting.h"
@@ -1104,6 +1107,71 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                 .helpText = "Disables the game HUD and all background music.<br/><br/>Useful for "
                             "recording footage.",
             });
+    });    
+    
+    add_tab("Mods", [this](Rml::Element* content) {
+        auto& leftPane = add_child<Pane>(content, Pane::Type::Controlled);
+        auto& rightPane = add_child<Pane>(content, Pane::Type::Uncontrolled);
+
+        leftPane.add_section("Mod Management");
+        leftPane.register_control(leftPane.add_button("Reload Mods").on_pressed([] {
+            dusk::TriggerReload();
+            mDoAud_seStartMenu(kSoundClick);
+        }), rightPane, [](Pane& pane) { pane.add_text("Reloads all mods and refreshes the game."); });
+
+        leftPane.register_control(leftPane.add_button("Open Mod Folder").on_pressed([] {
+            dusk::OpenModsFolder();
+            mDoAud_seStartMenu(kSoundClick);
+        }), rightPane, [](Pane& pane) { pane.add_text("Opens the mod directory."); });
+
+        leftPane.add_section("Active Mods");
+        auto modsPath = ConfigPath / "mods";
+        if (std::filesystem::exists(modsPath)) {
+            try {
+                for (const auto& entry : std::filesystem::directory_iterator(modsPath)) {
+                    if (entry.is_directory()) {
+                        std::string modName = entry.path().filename().string();
+                        
+                        Rml::String displayName = modName;
+                        Rml::String helpText = "No mod.json found for this mod.";
+                        std::filesystem::path jsonPath = entry.path() / "mod.json";
+                        if (std::filesystem::exists(jsonPath)) {
+                            try {
+                                std::ifstream f(jsonPath);
+                                nlohmann::json data = nlohmann::json::parse(f);
+                                if (data.contains("name")) displayName = data["name"].get<std::string>();
+                                
+                                std::string info;
+                                if (data.contains("version")) {
+                                    info += "Version: " + data["version"].get<std::string>() + "<br/>";
+                                }
+                                if (data.contains("author")) {
+                                    info += "Author: " + data["author"].get<std::string>() + "<br/>";
+                                }
+                                if (data.contains("description")) {
+                                    info += "<br/>" + data["description"].get<std::string>();
+                                }
+                                if (!info.empty()) helpText = info;
+                            } catch (...) {}
+                        }
+
+                        auto& configs = getSettings().game.modConfigs;
+                        if (configs.find(modName) == configs.end()) {
+                            configs.emplace(std::piecewise_construct,
+                                            std::forward_as_tuple(modName),
+                                            std::forward_as_tuple(modName.c_str(), dusk::IsModEnabled(modName)));
+                        }
+                        
+                        config_bool_select(leftPane, rightPane, configs.at(modName), {
+                            .key = displayName,
+                            .helpText = helpText,
+                            .onChange = [modName](bool enabled) { dusk::SetModEnabled(modName, enabled); }
+                        });
+                    }
+                }
+            } catch (const std::exception& e) {
+            }
+        }
     });
 }
 

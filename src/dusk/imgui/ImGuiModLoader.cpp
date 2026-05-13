@@ -4,7 +4,6 @@
 #include "dusk/logging.h"
 #include "dusk/main.h"
 #include "fmt/format.h"
-#include "d/d_com_inf_game.h"
 #include "dusk/arc_loader.hpp"
 #include <map>
 
@@ -13,11 +12,6 @@ namespace dusk {
     static bool s_enableFileWatcher = true;
     static bool s_showSettings = false;
     static bool s_showMods = true;
-
-    void TriggerReload() {
-        dusk::InitModLoader();
-        dComIfGp_setNextStage(dComIfGp_getStartStageName(), dComIfGp_getStartStagePoint(), dComIfGp_roomControl_getStayNo(), dComIfGp_getStartStageLayer());
-    }
 
     void SetAllFilesEnabled(const std::shared_ptr<ArcDirectory>& dir, const std::string& arcName, const std::string& modName, bool enabled) {
         for (const auto& file : dir->files) {
@@ -54,7 +48,7 @@ namespace dusk {
             ImGui::MenuItem("Mods", nullptr, &s_showMods);
             ImGui::MenuItem("Settings", nullptr, &s_showSettings);
             if (ImGui::MenuItem("Reload Mods")) {
-                TriggerReload();
+                dusk::TriggerReload();
             }
             ImGui::EndMenu();
         }
@@ -67,7 +61,7 @@ namespace dusk {
                 auto currentTime = std::filesystem::last_write_time(modsDir);
                 if (currentTime != s_lastModsDirTime) {
                     s_lastModsDirTime = currentTime;
-                    TriggerReload();
+                    dusk::TriggerReload();
                 }
             }
         }
@@ -82,7 +76,7 @@ namespace dusk {
         if (s_showMods) {
             if (ImGui::Begin("Mods", &s_showMods)) {
                 if (ImGui::Button("Reload Mods")) {
-                    TriggerReload();
+                    dusk::TriggerReload();
                 }
                 auto modsPath = dusk::ConfigPath / "mods";
                 if (std::filesystem::exists(modsPath)) {

@@ -127,7 +127,7 @@ struct UpdateCheckTask {
     UpdateCheckTask() {
         worker = std::thread([this] {
             try {
-                result = update_check::check_latest_github_release("TwilitRealm", "dusk");
+                result = update_check::check_latest_github_release("F1mmel", "dusklight");
             } catch (const std::exception& e) {
                 result = {
                     .status = update_check::Status::Failed,

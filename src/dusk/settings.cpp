@@ -1,7 +1,37 @@
 #include "dusk/settings.h"
 #include "dusk/config.hpp"
+#include "dusk/mod_loader.hpp"
+#include "dusk/main.h"
+#include <filesystem>
+#include <set>
 
 namespace dusk {
+
+static std::set<std::string> s_modConfigNames;
+
+static std::string toCamelCase(std::string_view input) {
+    std::string result;
+    bool nextUpper = false;
+    bool first = true;
+    for (char c : input) {
+        if (std::isalnum(static_cast<unsigned char>(c))) {
+            if (first) {
+                result += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                first = false;
+            } else if (nextUpper) {
+                result += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                nextUpper = false;
+            } else {
+                result += c;
+            }
+        } else {
+            if (!first) {
+                nextUpper = true;
+            }
+        }
+    }
+    return result;
+}
 
 UserSettings g_userSettings = {
     .video = {
@@ -113,7 +143,10 @@ UserSettings g_userSettings = {
         // Tools
         .speedrunMode {"game.speedrunMode", false},
         .liveSplitEnabled {"game.liveSplitEnabled", false},
-        .recordingMode {"game.recordingMode", false}
+        .recordingMode {"game.recordingMode", false},
+
+        // Mods
+        .modConfigs = {}
     },
 
     .backend = {
@@ -225,6 +258,32 @@ void registerSettings() {
     Register(g_userSettings.game.debugFlyCamLockEvents);
     Register(g_userSettings.game.allowBackgroundInput);
 
+    if (!ConfigPath.empty()) {
+        LoadModSettings();
+        std::filesystem::path modsDir = ConfigPath / "mods";
+        std::error_code ec;
+        if (std::filesystem::exists(modsDir, ec)) {
+            for (const auto& entry : std::filesystem::directory_iterator(modsDir, ec)) {
+                if (entry.is_directory()) {
+                    std::string modName = entry.path().filename().string();
+                    std::string configName = "mods." + toCamelCase(modName);
+
+                    auto [it, inserted] = s_modConfigNames.insert(configName);
+                    if (g_userSettings.game.modConfigs.find(modName) == g_userSettings.game.modConfigs.end()) {
+                        g_userSettings.game.modConfigs.emplace(
+                            std::piecewise_construct,
+                            std::forward_as_tuple(modName),
+                            std::forward_as_tuple(it->c_str(), IsModEnabled(modName)));
+                    }
+                }
+            }
+        }
+    }
+
+    for (auto& [name, var] : g_userSettings.game.modConfigs) {
+        Register(var);
+    }
+
     Register(g_userSettings.backend.isoPath);
     Register(g_userSettings.backend.isoVerification);
     Register(g_userSettings.backend.graphicsBackend);
@@ -257,3 +316,4 @@ TransientSettings& getTransientSettings() {
 }
 
 }
+

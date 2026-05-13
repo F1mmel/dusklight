@@ -11,6 +11,7 @@ public:
 
 protected:
     bool mPrelaunch;
+    std::map<std::string, std::unique_ptr<dusk::config::ConfigVar<bool>>> mModConfigs;
 };
 
 }  // namespace dusk::ui

@@ -31,6 +31,7 @@ namespace dusk {
 
     void RequestRestart() noexcept;
     bool OpenDataFolder();
+    bool OpenModsFolder();
 }
 
 #endif  // DUSK_MAIN_H
