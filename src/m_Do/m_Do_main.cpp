@@ -56,6 +56,7 @@
 #include "dusk/imgui/ImGuiEngine.hpp"
 #include "dusk/iso_validate.hpp"
 #include "dusk/logging.h"
+#include "dusk/mod_loader.hpp"
 #include "dusk/main.h"
 #include "dusk/ui/menu_bar.hpp"
 #include "dusk/ui/overlay.hpp"
@@ -694,6 +695,7 @@ int game_main(int argc, char* argv[]) {
     dusk::ConfigPath = calculate_config_path();
     const auto startupLogLevel = static_cast<AuroraLogLevel>(parsed_arg_options["log-level"].as<uint8_t>());
     dusk::InitializeFileLogging(dusk::ConfigPath, startupLogLevel);
+    dusk::InitModLoader();
 
     dusk::config::LoadFromUserPreferences();
     ApplyCVarOverrides(parsed_arg_options["cvar"]);

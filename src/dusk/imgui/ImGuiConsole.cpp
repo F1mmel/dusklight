@@ -274,11 +274,14 @@ namespace dusk {
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
         if (showMenu && ImGui::BeginMainMenuBar()) {
             m_menuGame.draw();
+            m_menuModLoader.drawMenu();
             m_menuTools.draw();
 
             ImGui::EndMainMenuBar();
         }
         ImGui::PopStyleColor();
+
+        m_menuModLoader.drawWindows();
 
         if (dusk::IsGameLaunched && !m_isLaunchInitialized) {
             m_isLaunchInitialized = true;

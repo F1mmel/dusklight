@@ -1434,6 +1434,8 @@ set(DUSK_FILES
         src/dusk/io.cpp
         src/dusk/layout.cpp
         src/dusk/logging.cpp
+        src/dusk/mod_loader.cpp
+        src/dusk/arc_loader.cpp
         src/dusk/settings.cpp
         src/dusk/stubs.cpp
         src/dusk/update_check.cpp
@@ -1457,6 +1459,7 @@ set(DUSK_FILES
         src/dusk/imgui/ImGuiControllerOverlay.cpp
         src/dusk/imgui/ImGuiStubLog.cpp
         src/dusk/imgui/ImGuiMapLoader.cpp
+        src/dusk/imgui/ImGuiModLoader.cpp
         src/dusk/imgui/ImGuiSaveEditor.cpp
         src/dusk/imgui/ImGuiStateShare.hpp
         src/dusk/imgui/ImGuiStateShare.cpp

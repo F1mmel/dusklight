@@ -4,6 +4,10 @@
 */
 
 #include "m_Do/m_Do_dvd_thread.h"
+#include "dusk/mod_loader.hpp"
+#include "dusk/io.hpp"
+#include <vector>
+#include <exception>
 #include "JSystem/JAudio2/JASDvdThread.h"
 #include "JSystem/JKernel/JKRAramArchive.h"
 #include "JSystem/JKernel/JKRAssertHeap.h"
@@ -223,16 +227,23 @@ mDoDvdThd_mountArchive_c* mDoDvdThd_mountArchive_c::create(char const* pArchiveP
     mDoDvdThd_mountArchive_c* mountArcCmd =
         JKR_NEW_ARGS (mDoExt_getCommandHeap(), -4) mDoDvdThd_mountArchive_c(mountDirection);
     if (mountArcCmd != NULL) {
-        mountArcCmd->mEntryNumber = my_DVDConvertPathToEntrynum(pArchivePath);
-        if (mountArcCmd->mEntryNumber == -1) {
-            mountArcCmd->mIsDone = true;
-            JKR_DELETE(mountArcCmd);
-            mountArcCmd = NULL;
-        } else {
+        std::optional<std::filesystem::path> modPath = dusk::GetModFilePath(pArchivePath);
+        if (modPath) {
+            mountArcCmd->mModPath = *modPath;
             mountArcCmd->mHeap = pHeap;
             mDoDvdThd::l_param.addition(mountArcCmd);
-            if (mDoDvdThd::DVDLogoMode) {
-                OS_REPORT("\x1b[34m<DVD> mountArchive(%d:%s)\n\x1b[m", mountArcCmd->mEntryNumber, pArchivePath);
+        } else {
+            mountArcCmd->mEntryNumber = my_DVDConvertPathToEntrynum(pArchivePath);
+            if (mountArcCmd->mEntryNumber == -1) {
+                mountArcCmd->mIsDone = true;
+                JKR_DELETE(mountArcCmd);
+                mountArcCmd = NULL;
+            } else {
+                mountArcCmd->mHeap = pHeap;
+                mDoDvdThd::l_param.addition(mountArcCmd);
+                if (mDoDvdThd::DVDLogoMode) {
+                    OS_REPORT("\x1b[34m<DVD> mountArchive(%d:%s)\n\x1b[m", mountArcCmd->mEntryNumber, pArchivePath);
+                }
             }
         }
     }
@@ -240,6 +251,21 @@ mDoDvdThd_mountArchive_c* mDoDvdThd_mountArchive_c::create(char const* pArchiveP
 }
 
 s32 mDoDvdThd_mountArchive_c::execute() {
+    if (!mModPath.empty()) {
+        try {
+            auto buffer = dusk::io::FileStream::ReadAllBytes(mModPath);
+            JKRHeap* heap = mHeap != NULL ? mHeap : mDoExt_getArchiveHeap();
+            void* mem = heap->alloc(buffer.size(), 0);
+            if (mem) {
+                memcpy(mem, buffer.data(), buffer.size());
+                mArchive = JKR_NEW_ARGS (heap, 0) JKRMemArchive(mem, buffer.size(), JKRMEMBREAK_FLAG_UNKNOWN1);
+            }
+        } catch (...) {}
+        if (mArchive && mArchive->isMounted()) {
+            mIsDone = true;
+            return true;
+        }
+    }
 #if PLATFORM_GCN
     bool isZeldaHeap = false;
     bool isGameHeap = false;
@@ -378,16 +404,23 @@ mDoDvdThd_mountXArchive_c* mDoDvdThd_mountXArchive_c::create(char const* pArchiv
     mDoDvdThd_mountXArchive_c* mountXArcCmd =
         JKR_NEW_ARGS (mDoExt_getCommandHeap(), -4) mDoDvdThd_mountXArchive_c(mountDirection, mountMode);
     if (mountXArcCmd != NULL) {
-        mountXArcCmd->mEntryNum = my_DVDConvertPathToEntrynum(pArchivePath);
-        if (mountXArcCmd->mEntryNum == -1) {
-            mountXArcCmd->mIsDone = true;
-            JKR_DELETE(mountXArcCmd);
-            mountXArcCmd = NULL;
-        } else {
+        std::optional<std::filesystem::path> modPath = dusk::GetModFilePath(pArchivePath);
+        if (modPath) {
+            mountXArcCmd->mModPath = *modPath;
             mountXArcCmd->mHeap = pHeap;
             mDoDvdThd::l_param.addition(mountXArcCmd);
-            if (mDoDvdThd::DVDLogoMode) {
-                OS_WARNING("<DVD> mountXArchive(%d:%s)\n", mountXArcCmd->mEntryNum, pArchivePath);
+        } else {
+            mountXArcCmd->mEntryNum = my_DVDConvertPathToEntrynum(pArchivePath);
+            if (mountXArcCmd->mEntryNum == -1) {
+                mountXArcCmd->mIsDone = true;
+                JKR_DELETE(mountXArcCmd);
+                mountXArcCmd = NULL;
+            } else {
+                mountXArcCmd->mHeap = pHeap;
+                mDoDvdThd::l_param.addition(mountXArcCmd);
+                if (mDoDvdThd::DVDLogoMode) {
+                    OS_WARNING("<DVD> mountXArchive(%d:%s)\n", mountXArcCmd->mEntryNum, pArchivePath);
+                }
             }
         }
     }
@@ -395,6 +428,21 @@ mDoDvdThd_mountXArchive_c* mDoDvdThd_mountXArchive_c::create(char const* pArchiv
 }
 
 s32 mDoDvdThd_mountXArchive_c::execute() {
+    if (!mModPath.empty()) {
+        try {
+            auto buffer = dusk::io::FileStream::ReadAllBytes(mModPath);
+            JKRHeap* heap = mHeap != NULL ? mHeap : mDoExt_getArchiveHeap();
+            void* mem = heap->alloc(buffer.size(), 0);
+            if (mem) {
+                memcpy(mem, buffer.data(), buffer.size());
+                mArchive = JKR_NEW_ARGS (heap, 0) JKRMemArchive(mem, buffer.size(), JKRMEMBREAK_FLAG_UNKNOWN1);
+            }
+        } catch (...) {}
+        if (mArchive && mArchive->isMounted()) {
+            mIsDone = true;
+            return true;
+        }
+    }
 #if DEBUG
     OSTime time1 = OSGetTime();
 #endif
@@ -462,16 +510,23 @@ mDoDvdThd_toMainRam_c* mDoDvdThd_toMainRam_c::create(char const* pArchivePath, u
     mDoDvdThd_toMainRam_c* toMainRAMCmd =
         JKR_NEW_ARGS (mDoExt_getCommandHeap(), -4) mDoDvdThd_toMainRam_c(mountDirection);
     if (toMainRAMCmd != NULL) {
-        toMainRAMCmd->mEntryNum = my_DVDConvertPathToEntrynum(pArchivePath);
-        if (toMainRAMCmd->mEntryNum == -1) {
-            toMainRAMCmd->mIsDone = true;
-            JKR_DELETE(toMainRAMCmd);
-            toMainRAMCmd = NULL;
-        } else {
+        std::optional<std::filesystem::path> modPath = dusk::GetModFilePath(pArchivePath);
+        if (modPath) {
+            toMainRAMCmd->mModPath = *modPath;
             toMainRAMCmd->mHeap = pHeap;
             mDoDvdThd::l_param.addition(toMainRAMCmd);
-            if (mDoDvdThd::DVDLogoMode) {
-                OS_WARNING("<DVD> toMainRam(%d:%s)\n", toMainRAMCmd->mEntryNum, pArchivePath);
+        } else {
+            toMainRAMCmd->mEntryNum = my_DVDConvertPathToEntrynum(pArchivePath);
+            if (toMainRAMCmd->mEntryNum == -1) {
+                toMainRAMCmd->mIsDone = true;
+                JKR_DELETE(toMainRAMCmd);
+                toMainRAMCmd = NULL;
+            } else {
+                toMainRAMCmd->mHeap = pHeap;
+                mDoDvdThd::l_param.addition(toMainRAMCmd);
+                if (mDoDvdThd::DVDLogoMode) {
+                    OS_WARNING("<DVD> toMainRam(%d:%s)\n", toMainRAMCmd->mEntryNum, pArchivePath);
+                }
             }
         }
     }
@@ -481,6 +536,20 @@ mDoDvdThd_toMainRam_c* mDoDvdThd_toMainRam_c::create(char const* pArchivePath, u
 mDoDvdThd_toMainRam_c::~mDoDvdThd_toMainRam_c() {}
 
 s32 mDoDvdThd_toMainRam_c::execute() {
+    if (!mModPath.empty()) {
+        try {
+            auto buffer = dusk::io::FileStream::ReadAllBytes(mModPath);
+            JKRHeap* heap = mHeap != NULL ? mHeap : mDoExt_getArchiveHeap();
+            void* mem = heap->alloc(buffer.size(), 0);
+            if (mem) {
+                memcpy(mem, buffer.data(), buffer.size());
+                mData = mem;
+                mDataSize = buffer.size();
+                mIsDone = true;
+                return true;
+            }
+        } catch (...) {}
+    }
 #if DEBUG
     OSTime time1 = OSGetTime();
 #endif

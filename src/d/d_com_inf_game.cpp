@@ -10,6 +10,7 @@
 #include "d/actor/d_a_alink.h"
 #include "d/d_com_inf_game.h"
 #include "d/d_item.h"
+#include "dusk/mod_loader.hpp"
 #include "d/d_map_path_dmap.h"
 #include "d/d_menu_fmap.h"
 #include "d/d_menu_window_HIO.h"
@@ -1284,6 +1285,7 @@ static int phase_3(char*) {
  * @return Loading phase state. cPhs_COMPLEATE_e if loaded successfully
  */
 int dComIfG_resLoad(request_of_phase_process_class* i_phase, char const* i_arcName) {
+    dusk::LogArchiveLoad(i_arcName);
     static int (*l_method[3])(void*) = {(int (*)(void*))phase_1, (int (*)(void*))phase_2,
                                         (int (*)(void*))phase_3};
 
@@ -1332,6 +1334,7 @@ static int phase_03(phaseParam_c*) {
  */
 int dComIfG_resLoad(request_of_phase_process_class* i_phase, char const* i_resName,
                     JKRHeap* i_heap) {
+    dusk::LogArchiveLoad(i_resName);
     static int (*l_method[3])(void*) = {(int (*)(void*))phase_01, (int (*)(void*))phase_02,
                                         (int (*)(void*))phase_03};
 

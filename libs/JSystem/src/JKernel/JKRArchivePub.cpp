@@ -1,5 +1,5 @@
 #include "JSystem/JSystem.h" // IWYU pragma: keep
-
+#include <fstream>
 #include "JSystem/JKernel/JKRAramArchive.h"
 #include "JSystem/JKernel/JKRArchive.h"
 #include "JSystem/JKernel/JKRCompArchive.h"
@@ -8,6 +8,8 @@
 #include "JSystem/JKernel/JKRHeap.h"
 #include "JSystem/JKernel/JKRMemArchive.h"
 #include "JSystem/JUtility/JUTAssert.h"
+#include "dusk/mod_loader.hpp"
+#include "fmt/format.h"
 
 JKRArchive* JKRArchive::check_mount_already(s32 entryNum, JKRHeap* heap) {
     if (heap == NULL) {
@@ -28,14 +30,18 @@ JKRArchive* JKRArchive::check_mount_already(s32 entryNum, JKRHeap* heap) {
 }
 
 JKRArchive* JKRArchive::mount(const char* path, EMountMode mountMode, JKRHeap* heap,
-                              EMountDirection mountDirection) {
-    s32 entryNum = DVDConvertPathToEntrynum(path);
+                               EMountDirection mountDirection) {
+    dusk::LogArchiveLoad(path);
+
+    auto modPath = dusk::GetModFilePath(path);
+    const char* targetPath = modPath ? modPath->string().c_str() : path;
+
+    s32 entryNum = DVDConvertPathToEntrynum(targetPath);
     if (entryNum < 0)
         return NULL;
 
     return mount(entryNum, mountMode, heap, mountDirection);
 }
-
 JKRArchive* JKRArchive::mount(void* ptr, JKRHeap* heap,
                               EMountDirection mountDirection) {
     JKRArchive* archive = check_mount_already((intptr_t)ptr, heap);
@@ -134,6 +140,24 @@ void* JKRArchive::getGlbResource(u32 param_1, const char* path, JKRArchive* arch
 
 void* JKRArchive::getResource(const char* path) {
     JUT_ASSERT(303, isMounted());
+    
+    std::string fullPath = std::string(mVolumeName) + "/" + path;
+    auto modPath = dusk::GetModFilePath(fullPath.c_str());
+    dusk::AddModLog(fmt::format(fmt::runtime("[JKRArchive::getResource(const char* path)] Checking: {}"), fullPath));
+    if (modPath) {
+        std::ifstream file(*modPath, std::ios::binary | std::ios::ate);
+        if (file) {
+            size_t size = file.tellg();
+            file.seekg(0, std::ios::beg);
+            void* buffer = JKRAllocFromSysHeap(size, 0);
+            if (buffer) {
+                file.read((char*)buffer, size);
+                return buffer;
+            }
+        }
+    }
+
+    dusk::LogFileLoad(mVolumeName, path);
     SDIFileEntry* fileEntry = NULL;
     if (*path == '/') {
         fileEntry = findFsResource(path + 1, 0);
@@ -150,6 +174,9 @@ void* JKRArchive::getResource(const char* path) {
 
 void* JKRArchive::getResource(u32 type, const char* path) {
     JUT_ASSERT(347, isMounted());
+    
+    dusk::AddModLog(fmt::format(fmt::runtime("[JKRArchive::getResource(u32 type, const char* path)] Checking: {}"), path));
+    dusk::LogFileLoad(mVolumeName, path);
     SDIFileEntry* fileEntry;
     if (type == 0 || type == '????') {
         fileEntry = findNameResource(path);

@@ -17,6 +17,8 @@ orig/*/*
 *.map
 *.MAP
 
+_build64.bat
+
 # Save files
 *.raw
 *.gci

@@ -3,7 +3,7 @@
 
 #include "JSystem/JKernel/JKRArchive.h"
 #include <os.h>
-#include <os.h>
+#include <filesystem>
 #include "JSystem/JKernel/JKRHeap.h"
 #include "f_pc/f_pc_node.h"
 
@@ -73,6 +73,7 @@ private:
     /* 0x18 */ s32 mEntryNumber;
     /* 0x1C */ JKRMemArchive* mArchive;
     /* 0x20 */ JKRHeap* mHeap;
+    std::filesystem::path mModPath;
 };  // Size = 0x24
 
 class mDoDvdThd_mountAramArchive_c : public mDoDvdThd_command_c {
@@ -101,6 +102,7 @@ private:
     /* 0x1C */ JKRArchive* mArchive;
     /* 0x20 */ JKRArchive::EMountMode mMountMode;
     /* 0x24 */ JKRHeap* mHeap;
+    std::filesystem::path mModPath;
 };  // Size = 0x28
 
 class mDoDvdThd_getResource_c : public mDoDvdThd_command_c {
@@ -127,6 +129,7 @@ private:
     /* 0x1C */ void* mData;
     /* 0x20 */ s32 mDataSize;
     /* 0x24 */ JKRHeap* mHeap;
+    std::filesystem::path mModPath;
 };  // Size = 0x28
 
 struct mDoDvdThdStack {

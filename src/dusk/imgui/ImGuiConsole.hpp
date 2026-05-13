@@ -9,6 +9,7 @@
 
 #include "ImGuiMenuGame.hpp"
 #include "ImGuiMenuTools.hpp"
+#include "dusk/imgui/ImGuiModLoader.hpp"
 #include "dusk/main.h"
 #include "imgui.h"
 
@@ -48,6 +49,7 @@ private:
 
     // Keep always last
     ImGuiMenuTools m_menuTools;
+    ImGuiModLoader m_menuModLoader;
 
     void ShowToasts();
     void ShowPipelineProgress();
