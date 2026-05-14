@@ -169,14 +169,15 @@ jobs:
       - name: Package artifacts
         run: |
           mkdir -p release
-          cp -R build/install/Dusklight.app release/
-          tar -czf dusklight-${{ env.DUSK_VERSION }}-${{ matrix.artifact_name }}.tar.gz -C release .
+          cp -R build/install/Dusk.app release/
+
+          tar -czf dusk-${{ env.DUSK_VERSION }}-${{ matrix.artifact_name }}.tar.gz -C release Dusk.app
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dusklight-${{ env.DUSK_VERSION }}-${{ matrix.artifact_name }}
-          path: release/*
+          name: dusk-${{ env.DUSK_VERSION }}-${{ matrix.artifact_name }}
+          path: dusk-${{ env.DUSK_VERSION }}-${{ matrix.artifact_name }}.tar.gz
 
   build-android:
     needs: version
